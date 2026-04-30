@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InvoiceFlow | International Transformation</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .international-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            height: calc(100vh - 160px);
+        }
+
+        .invoice-selector {
+            background: var(--white);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .selector-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+        }
+
+        .invoice-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .invoice-item {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .invoice-item:hover {
+            background: #f1f5f9;
+        }
+
+        .invoice-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            border-left: 4px solid var(--primary);
+        }
+
+        .invoice-item h4 {
+            font-size: 0.9375rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .invoice-item p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .transformation-panel {
+            background: var(--white);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .country-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .country-selector label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .select-input {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.9375rem;
+            outline: none;
+            width: 100%;
+        }
+
+        .result-container {
+            flex: 1;
+            background: #f8fafc;
+            border-radius: 1rem;
+            padding: 2rem;
+            border: 1px dashed var(--border);
+            position: relative;
+            min-height: 400px;
+        }
+
+        .empty-result {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .transformed-json {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+
+        .transformation-loader {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .market-badge {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .research-card {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .research-card h4 {
+            color: #1e40af;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9375rem;
+        }
+
+        .research-card p {
+            font-size: 0.875rem;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .missing-card {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .missing-card h4 {
+            color: #9a3412;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9375rem;
+        }
+
+        .missing-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .missing-tag {
+            background: #ffedd5;
+            color: #c2410c;
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid #fdba74;
+        }
+
+        .export-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-export {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: var(--white);
+        }
+
+        .btn-export:hover {
+            background: #f1f5f9;
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-export.pdf {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+
+        .btn-export.pdf:hover {
+            background: #fecaca;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i data-lucide="zap" class="logo-icon"></i>
+                <span>InvoiceFlow</span>
+            </div>
+            <nav class="nav">
+                <a href="/" class="nav-item"><i data-lucide="layout-dashboard"></i> <span
+                        data-i18n="nav_dashboard">Dashboard</span></a>
+                <a href="/invoices/" class="nav-item"><i data-lucide="file-text"></i> <span
+                        data-i18n="nav_all_invoices">All Invoices</span></a>
+                <a href="/international/" class="nav-item active"><i data-lucide="globe"></i> <span
+                        data-i18n="nav_international">International Invoices</span></a>
+                <a href="/admin/core/processedinvoice/" class="nav-item" target="_blank"><i data-lucide="settings"></i>
+                    <span data-i18n="nav_settings">Settings</span></a>
+                <form action="{% url 'logout' %}" method="post" style="width: 100%;">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-item"
+                        style="background:none; border:none; width:100%; text-align:left; cursor:pointer;">
+                        <i data-lucide="log-out"></i> <span data-i18n="nav_logout">Logout</span>
+                    </button>
+                </form>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="lang-toggle">
+                    <button class="btn-lang active" onclick="setLanguage('en')">EN</button>
+                    <button class="btn-lang" onclick="setLanguage('bs')">BS</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h1 data-i18n="nav_international">International Transformation</h1>
+                <div class="user-profile">
+                    <span class="user-name">{{ request.user.username }}</span>
+                    <div class="avatar">{{ request.user.username|slice:":2"|upper }}</div>
+                </div>
+            </header>
+
+            <div class="international-grid">
+                <!-- Invoice Selector -->
+                <div class="invoice-selector">
+                    <div class="selector-header">
+                        <h3 data-i18n="select_invoice">Select Invoice</h3>
+                    </div>
+                    <div class="invoice-list">
+                        {% for inv in invoices %}
+                        <div class="invoice-item" onclick="selectInvoice('{{ inv.id }}', this)">
+                            <h4>{{ inv.vendor_name|default:"Unknown" }}</h4>
+                            <p>#{{ inv.invoice_number|default:"---" }} | {{ inv.invoice_date }}</p>
+                            <p>{{ inv.currency }} {{ inv.amount_due }}</p>
+                        </div>
+                        {% empty %}
+                        <p style="padding: 2rem; text-align: center;" data-i18n="empty_state">No invoices found.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Transformation Panel -->
+                <div class="transformation-panel">
+                    <div class="panel-header">
+                        <div class="market-badge">
+                            <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+                            AI will research latest 2025 rules for your country
+                        </div>
+                        <div class="controls-row">
+                            <div class="country-selector">
+                                <label data-i18n="label_target_country">Target Country</label>
+                                <select id="target-country" class="select-input">
+                                    <option value="Australia">Australia</option>
+                                    <option value="USA">USA</option>
+                                    <option value="Germany">Germany</option>
+                                    <option value="United Kingdom">United Kingdom</option>
+                                    <option value="Croatia">Croatia</option>
+                                    <option value="Canada">Canada</option>
+                                    <option value="Austria">Austria</option>
+                                    <option value="Switzerland">Switzerland</option>
+                                </select>
+                            </div>
+                            <div class="country-selector">
+                                <label data-i18n="label_target_language">Target Language</label>
+                                <select id="target-language" class="select-input">
+                                    <option value="English">English</option>
+                                    <option value="German">German (Deutsch)</option>
+                                    <option value="Bosnian">Bosnian (Bosanski)</option>
+                                    <option value="French">French (Français)</option>
+                                    <option value="Spanish">Spanish (Español)</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="transformInvoice()" id="transform-btn" disabled>
+                                <i data-lucide="sparkles"></i> <span data-i18n="btn_transform">Research &
+                                    Transform</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Research Summary Card -->
+                    <div id="research-summary" class="research-card">
+                        <h4><i data-lucide="library"></i> Legal Research Summary</h4>
+                        <p id="research-text"></p>
+                    </div>
+
+                    <!-- Missing Fields Card -->
+                    <div id="missing-fields-card" class="missing-card">
+                        <h4><i data-lucide="alert-triangle"></i> Mandatory Missing Information</h4>
+                        <p>The following fields are legally required in the target country but missing from the original
+                            invoice. Please ensure these are filled for a valid document.</p>
+                        <div id="missing-list" class="missing-list"></div>
+                    </div>
+
+                    <div class="result-container" id="result-container">
+                        <div class="empty-result" id="empty-hint">
+                            <i data-lucide="file-json"
+                                style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
+                            <p data-i18n="transform_hint">Select an invoice and country to start transformation</p>
+                        </div>
+                        <div class="transformation-loader" id="loader">
+                            <div class="loader"></div>
+                            <p id="loader-text">AI is researching 2025 legal requirements...</p>
+                        </div>
+                        <div id="transformed-result" style="display: none;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+                                <h3 data-i18n="transformed_data">Transformed Data</h3>
+                                <div class="export-group">
+                                    <button class="btn-export pdf" onclick="downloadPDF()">
+                                        <i data-lucide="file-type-2"></i> PDF
+                                    </button>
+                                    <button class="btn-export" onclick="downloadFormat('json')">
+                                        <i data-lucide="code"></i> JSON
+                                    </button>
+                                    <button class="btn-export" onclick="downloadFormat('xml')">
+                                        <i data-lucide="file-code"></i> XML
+                                    </button>
+                                    <button class="btn-export" onclick="downloadFormat('csv')">
+                                        <i data-lucide="table"></i> CSV
+                                    </button>
+                                </div>
+                            </div>
+                            <pre class="transformed-json" id="json-display"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                nav_dashboard: "Dashboard",
+                nav_all_invoices: "All Invoices",
+                nav_international: "International Invoices",
+                nav_settings: "Settings",
+                nav_logout: "Logout",
+                select_invoice: "Select Invoice",
+                label_target_country: "Target Country",
+                label_target_language: "Target Language",
+                btn_transform: "Research & Transform",
+                transform_hint: "Select an invoice and country to start transformation",
+                transformed_data: "Transformed Data",
+                empty_state: "No invoices found."
+            },
+            bs: {
+                nav_dashboard: "Kontrolna ploča",
+                nav_all_invoices: "Svi računi",
+                nav_international: "Međunarodni računi",
+                nav_settings: "Postavke",
+                nav_logout: "Odjava",
+                select_invoice: "Odaberi račun",
+                label_target_country: "Ciljna država",
+                label_target_language: "Ciljni jezik",
+                btn_transform: "Istraži i Transformiši",
+                transform_hint: "Odaberite račun i državu za početak istraživanja i transformacije",
+                transformed_data: "Transformisani podaci",
+                empty_state: "Nema pronađenih računa."
+            }
+        };
+
+        let currentLang = localStorage.getItem('lang') || 'en';
+        let selectedInvoiceId = null;
+        let lastTransformedData = null;
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) el.innerText = translations[lang][key];
+            });
+            document.querySelectorAll('.btn-lang').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase() === lang);
+            });
+        }
+
+        function selectInvoice(id, element) {
+            selectedInvoiceId = id;
+            document.querySelectorAll('.invoice-item').forEach(i => i.classList.remove('active'));
+            element.classList.add('active');
+            document.getElementById('transform-btn').disabled = false;
+        }
+
+        async function transformInvoice() {
+            const country = document.getElementById('target-country').value;
+            const language = document.getElementById('target-language').value;
+            const loader = document.getElementById('loader');
+            const result = document.getElementById('transformed-result');
+            const hint = document.getElementById('empty-hint');
+            const btn = document.getElementById('transform-btn');
+            const researchCard = document.getElementById('research-summary');
+            const missingCard = document.getElementById('missing-fields-card');
+
+            hint.style.display = 'none';
+            result.style.display = 'none';
+            researchCard.style.display = 'none';
+            missingCard.style.display = 'none';
+            loader.style.display = 'block';
+            btn.disabled = true;
+
+            // Animate loader text
+            const loaderTexts = [
+                "Researching 2025 tax rules for " + country + "...",
+                "Analyzing cross-border B2B requirements...",
+                "Applying Reverse Charge logic...",
+                "Formatting addresses and dates...",
+                "Finalizing legal compliance..."
+            ];
+            let textIdx = 0;
+            const textInterval = setInterval(() => {
+                document.getElementById('loader-text').innerText = loaderTexts[textIdx % loaderTexts.length];
+                textIdx++;
+            }, 3000);
+
+            try {
+                const response = await fetch('/transform-invoice/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        invoice_id: selectedInvoiceId,
+                        target_country: country,
+                        target_language: language
+                    })
+                });
+
+                clearInterval(textInterval);
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Display Research Summary
+                    if (data.legal_research_summary) {
+                        document.getElementById('research-text').innerText = data.legal_research_summary;
+                        researchCard.style.display = 'block';
+                    }
+
+                    // Display Missing Fields
+                    if (data.missing_fields && data.missing_fields.length > 0) {
+                        const list = document.getElementById('missing-list');
+                        list.innerHTML = '';
+                        data.missing_fields.forEach(field => {
+                            const tag = document.createElement('span');
+                            tag.className = 'missing-tag';
+                            tag.innerText = field;
+                            list.appendChild(tag);
+                        });
+                        missingCard.style.display = 'block';
+                    }
+
+                    lastTransformedData = data.transformed_data;
+                    // Add the language to the data for PDF localization
+                    lastTransformedData.language = language;
+
+                    document.getElementById('json-display').innerText = JSON.stringify(data.transformed_data, null, 2);
+                    loader.style.display = 'none';
+                    result.style.display = 'block';
+                } else {
+                    alert("Transformation failed. Please try again.");
+                    loader.style.display = 'none';
+                    hint.style.display = 'block';
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Network error.");
+                loader.style.display = 'none';
+                hint.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function downloadFormat(format) {
+            if (!lastTransformedData) return;
+            const country = document.getElementById('target-country').value;
+            let content, type, extension;
+
+            if (format === 'json') {
+                content = JSON.stringify(lastTransformedData, null, 2);
+                type = 'application/json';
+                extension = 'json';
+            } else if (format === 'xml') {
+                content = dictToXML(lastTransformedData);
+                type = 'application/xml';
+                extension = 'xml';
+            } else if (format === 'csv') {
+                content = dictToCSV(lastTransformedData);
+                type = 'text/csv';
+                extension = 'csv';
+            }
+
+            const blob = new Blob([content], { type: type });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transformed_invoice_${country.toLowerCase()}.${extension}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        async function downloadPDF() {
+            if (!lastTransformedData) return;
+            try {
+                const response = await fetch('/export-pdf/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ transformed_data: lastTransformedData })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "transformed_invoice.pdf";
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    alert("PDF generation failed.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Network error during PDF export.");
+            }
+        }
+
+        function dictToXML(data) {
+            let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<Invoice>\n';
+            for (let key in data) {
+                if (typeof data[key] === 'object' && data[key] !== null) {
+                    xml += `  <${key}>\n`;
+                    for (let subKey in data[key]) {
+                        xml += `    <${subKey}>${data[key][subKey]}</${subKey}>\n`;
+                    }
+                    xml += `  <${key}>\n`;
+                } else {
+                    xml += `  <${key}>${data[key]}</${key}>\n`;
+                }
+            }
+            xml += '</Invoice>';
+            return xml;
+        }
+
+        function dictToCSV(data) {
+            let csv = "Category,Field,Value\n";
+            for (let cat in data) {
+                if (typeof data[cat] === 'object' && data[cat] !== null) {
+                    for (let field in data[cat]) {
+                        csv += `${cat},${field},"${data[cat][field]}"\n`;
+                    }
+                } else {
+                    csv += `General,${cat},"${data[cat]}"\n`;
+                }
+            }
+            return csv;
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        lucide.createIcons();
+        setLanguage(currentLang);
+    </script>
+</body>
+
+</html>

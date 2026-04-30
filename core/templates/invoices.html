@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InvoiceFlow | All Invoices</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .filters-section {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .filter-input {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .filter-input:focus {
+            border-color: var(--primary);
+        }
+
+        .search-bar {
+            width: 100%;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .search-bar i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1rem 1rem 3rem;
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            font-size: 1rem;
+            box-shadow: var(--shadow);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i data-lucide="zap" class="logo-icon"></i>
+                <span>InvoiceFlow</span>
+            </div>
+            <nav class="nav">
+                <a href="/" class="nav-item active"><i data-lucide="layout-dashboard"></i> <span
+                        data-i18n="nav_dashboard">Dashboard</span></a>
+                <a href="/invoices/" class="nav-item"><i data-lucide="file-text"></i> <span
+                        data-i18n="nav_all_invoices">All Invoices</span></a>
+                {% if request.user.is_superuser %}
+                <a href="/international/" class="nav-item"><i data-lucide="globe"></i> <span
+                        data-i18n="nav_international">International Invoices</span></a>
+
+                <a href="/admin/core/processedinvoice/" class="nav-item" target="_blank"><i data-lucide="settings"></i>
+                    <span data-i18n="nav_settings">Settings</span></a>
+                {% endif %}
+                <form action="{% url 'logout' %}" method="post" style="width: 100%;">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-item"
+                        style="background:none; border:none; width:100%; text-align:left; cursor:pointer;">
+                        <i data-lucide="log-out"></i> <span data-i18n="nav_logout">Logout</span>
+                    </button>
+                </form>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="lang-toggle">
+                    <button class="btn-lang active" onclick="setLanguage('en')">EN</button>
+                    <button class="btn-lang" onclick="setLanguage('bs')">BS</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h1 data-i18n="nav_all_invoices">All Invoices</h1>
+                <div class="user-profile">
+                    <span class="user-name">{{ request.user.username }}</span>
+                    <div class="avatar">{{ request.user.username|slice:":2"|upper }}</div>
+                </div>
+            </header>
+
+            <section class="search-filters">
+                <div class="search-bar">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="search-input" class="search-input"
+                        placeholder="Search by vendor, invoice number..." data-i18n-placeholder="search_placeholder"
+                        onkeyup="applyFilters()">
+                </div>
+
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <label data-i18n="filter_status">Status</label>
+                        <select id="status-filter" class="filter-input" onchange="applyFilters()">
+                            <option value="" data-i18n="option_all_statuses">All Statuses</option>
+                            <option value="Paid" data-i18n="status_paid">Paid</option>
+                            <option value="Not Paid" data-i18n="status_not_paid">Not Paid</option>
+                            <option value="Processed" data-i18n="status_processed">Processed</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label data-i18n="filter_date_from">Date From</label>
+                        <input type="date" id="date-from" class="filter-input" onchange="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label data-i18n="filter_date_to">Date To</label>
+                        <input type="date" id="date-to" class="filter-input" onchange="applyFilters()">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Invoices Table -->
+            <section class="invoices-section">
+                <div class="table-container">
+                    <table class="invoices-table" id="invoices-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="th_vendor">Vendor</th>
+                                <th data-i18n="th_invoice_num">Invoice #</th>
+                                <th data-i18n="th_date">Date</th>
+                                <th data-i18n="th_amount">Amount</th>
+                                <th data-i18n="th_status">Status</th>
+                                <th data-i18n="th_actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoices-body">
+                            {% for invoice in invoices %}
+                            <tr data-vendor="{{ invoice.vendor_name|lower }}"
+                                data-number="{{ invoice.invoice_number|lower }}"
+                                data-status="{{ invoice.payment_status }}"
+                                data-date="{{ invoice.invoice_date|date:'Y-m-d' }}">
+                                <td>
+                                    <div class="vendor-info">
+                                        <div class="vendor-icon">{{ invoice.vendor_name|slice:":1"|default:"?" }}</div>
+                                        <span>{{ invoice.vendor_name|default:"Unknown" }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ invoice.invoice_number|default:"---" }}</td>
+                                <td>{{ invoice.invoice_date|default:"---" }}</td>
+                                <td class="amount">{{ invoice.currency }} {{ invoice.amount_due|default:"0.00" }}</td>
+                                <td>
+                                    <span class="status-badge {{ invoice.payment_status|lower }}">
+                                        {{ invoice.payment_status|default:"Processed" }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn-icon" onclick="viewDetails('{{ invoice.id }}')"><i
+                                            data-lucide="eye"></i></button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="empty-state" data-i18n="empty_state">No invoices found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Reuse Modal Logic from Dashboard -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2 data-i18n="modal_title">Invoice Details</h2>
+                <button class="close-modal" onclick="closeModal()">&times;</button>
+            </header>
+            <div class="modal-body" id="modal-body">
+                <div class="loader"></div>
+            </div>
+            <footer class="modal-footer">
+                <button class="btn btn-secondary" id="compare-btn" data-i18n="btn_compare">Compare with
+                    Original</button>
+                <button class="btn btn-secondary" id="download-xml" disabled data-i18n="btn_xml">Download XML</button>
+                <button class="btn btn-secondary" id="download-csv" disabled data-i18n="btn_csv">Download CSV</button>
+                <button class="btn btn-primary" onclick="closeModal()" data-i18n="btn_close">Close</button>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                nav_dashboard: "Dashboard",
+                nav_all_invoices: "All Invoices",
+                nav_international: "International Invoices",
+                nav_settings: "Settings",
+                nav_logout: "Logout",
+                header_title: "All Invoices",
+                user_name: "Admin User",
+                th_vendor: "Vendor",
+                th_invoice_num: "Invoice #",
+                th_date: "Date",
+                th_amount: "Amount",
+                th_status: "Status",
+                th_actions: "Actions",
+                empty_state: "No invoices found.",
+                modal_title: "Invoice Details",
+                btn_compare: "Compare with Original",
+                btn_close_compare: "Close Comparison",
+                btn_xml: "Download XML",
+                btn_csv: "Download CSV",
+                btn_close: "Close",
+                details_vendor: "Vendor",
+                details_client: "Client (Buyer)",
+                details_info: "Invoice Info",
+                details_financials: "Financials",
+                details_items: "Line Items",
+                lbl_name: "Name",
+                lbl_address: "Address",
+                lbl_vat: "VAT/JIB/OIB",
+                lbl_bank: "Bank",
+                lbl_iban: "IBAN",
+                lbl_swift: "SWIFT",
+                lbl_number: "Number",
+                lbl_date: "Date",
+                lbl_due_date: "Due Date",
+                lbl_ref: "Reference",
+                lbl_currency: "Currency",
+                lbl_subtotal: "Subtotal",
+                lbl_tax: "Tax",
+                lbl_total: "Total Due",
+                lbl_fiscal: "Fiscal (JIR/ZKI)",
+                th_desc: "Description",
+                th_qty: "Qty",
+                th_price: "Price",
+                th_total: "Total",
+                search_placeholder: "Search by vendor, invoice number...",
+                filter_status: "Status",
+                filter_date_from: "Date From",
+                filter_date_to: "Date To",
+                option_all_statuses: "All Statuses",
+                status_paid: "Paid",
+                status_not_paid: "Not Paid",
+                status_processed: "Processed"
+            },
+            bs: {
+                nav_dashboard: "Kontrolna ploča",
+                nav_all_invoices: "Svi računi",
+                nav_international: "Međunarodni računi",
+                nav_settings: "Postavke",
+                nav_logout: "Odjava",
+                header_title: "Svi računi",
+                user_name: "Administrator",
+                th_vendor: "Dobavljač",
+                th_invoice_num: "Broj računa",
+                th_date: "Datum",
+                th_amount: "Iznos",
+                th_status: "Status",
+                th_actions: "Akcije",
+                empty_state: "Nema pronađenih računa.",
+                modal_title: "Detalji računa",
+                btn_compare: "Uporedi sa originalom",
+                btn_close_compare: "Zatvori poređenje",
+                btn_xml: "Preuzmi XML",
+                btn_csv: "Preuzmi CSV",
+                btn_close: "Zatvori",
+                details_vendor: "Dobavljač",
+                details_client: "Klijent (Kupac)",
+                details_info: "Informacije o računu",
+                details_financials: "Finansije",
+                details_items: "Stavke",
+                lbl_name: "Naziv",
+                lbl_address: "Adresa",
+                lbl_vat: "VAT/JIB/OIB",
+                lbl_bank: "Banka",
+                lbl_iban: "IBAN",
+                lbl_swift: "SWIFT",
+                lbl_number: "Broj",
+                lbl_date: "Datum",
+                lbl_due_date: "Rok plaćanja",
+                lbl_ref: "Poziv na broj",
+                lbl_currency: "Valuta",
+                lbl_subtotal: "Osnovica",
+                lbl_tax: "Porez",
+                lbl_total: "Ukupno za platiti",
+                lbl_fiscal: "Fiskalni (JIR/ZKI)",
+                th_desc: "Opis",
+                th_qty: "Kol.",
+                th_price: "Cijena",
+                th_total: "Ukupno",
+                search_placeholder: "Pretraži po prodavaču, broju računa...",
+                filter_status: "Status",
+                filter_date_from: "Datum od",
+                filter_date_to: "Datum do",
+                option_all_statuses: "Svi statusi",
+                status_paid: "Plaćeno",
+                status_not_paid: "Neplaćeno",
+                status_processed: "Obrađeno"
+            }
+        };
+
+        const statusTranslations = {
+            en: { "Paid": "Paid", "Not Paid": "Not Paid", "Processed": "Processed", "Unpaid": "Not Paid" },
+            bs: { "Paid": "Plaćeno", "Not Paid": "Neplaćeno", "Processed": "Obrađeno", "Unpaid": "Neplaćeno" }
+        };
+
+        let currentLang = localStorage.getItem('lang') || 'en';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) el.innerText = translations[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[lang][key]) el.placeholder = translations[lang][key];
+            });
+            document.querySelectorAll('.btn-lang').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase() === lang);
+            });
+            document.querySelectorAll('.status-badge').forEach(badge => {
+                const currentText = badge.getAttribute('data-original-status') || badge.innerText.trim();
+                badge.setAttribute('data-original-status', currentText);
+                if (statusTranslations[lang][currentText]) badge.innerText = statusTranslations[lang][currentText];
+            });
+        }
+
+        function applyFilters() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const status = document.getElementById('status-filter').value;
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+
+            const rows = document.querySelectorAll('#invoices-body tr:not(.empty-state)');
+
+            rows.forEach(row => {
+                const vendor = row.getAttribute('data-vendor');
+                const number = row.getAttribute('data-number');
+                const rowStatus = row.getAttribute('data-status');
+                const rowDate = row.getAttribute('data-date');
+
+                let visible = true;
+
+                if (search && !vendor.includes(search) && !number.includes(search)) visible = false;
+                if (status && rowStatus !== status) visible = false;
+                if (dateFrom && rowDate < dateFrom) visible = false;
+                if (dateTo && rowDate > dateTo) visible = false;
+
+                row.style.display = visible ? '' : 'none';
+            });
+        }
+
+        async function viewDetails(id) {
+            const modal = document.getElementById('detail-modal');
+            const modalBody = document.getElementById('modal-body');
+            const xmlBtn = document.getElementById('download-xml');
+            const csvBtn = document.getElementById('download-csv');
+            const compareBtn = document.getElementById('compare-btn');
+
+            modal.style.display = 'flex';
+            modalBody.innerHTML = '<div class="loader"></div>';
+            modalBody.classList.remove('split-view');
+            document.querySelector('.modal-content').classList.remove('wide');
+            xmlBtn.disabled = true;
+            csvBtn.disabled = true;
+            compareBtn.style.display = 'none';
+
+            try {
+                const response = await fetch(`/get-invoice/${id}/`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const ed = data.extracted_data;
+                    const t = translations[currentLang];
+
+                    const renderData = () => `
+                        <div class="modal-data-content">
+                            <div class="details-grid">
+                                <div class="detail-group">
+                                    <h4>${t.details_vendor}</h4>
+                                    <p><strong>${t.lbl_name}:</strong> ${ed.vendor?.name || 'N/A'}</p>
+                                    <p><strong>${t.lbl_address}:</strong> ${ed.vendor?.address || 'N/A'}</p>
+                                    <p><strong>${t.lbl_vat}:</strong> ${ed.vendor?.vat_id || ed.vendor?.jib_oib || 'N/A'}</p>
+                                    <p><strong>${t.lbl_bank}:</strong> ${ed.vendor?.bank_name || 'N/A'}</p>
+                                    <p><strong>${t.lbl_iban}:</strong> ${ed.vendor?.bank_account || 'N/A'}</p>
+                                    <p><strong>${t.lbl_swift}:</strong> ${ed.vendor?.swift_bic || 'N/A'}</p>
+                                </div>
+                                <div class="detail-group">
+                                    <h4>${t.details_client}</h4>
+                                    <p><strong>${t.lbl_name}:</strong> ${ed.customer?.name || 'N/A'}</p>
+                                    <p><strong>${t.lbl_address}:</strong> ${ed.customer?.address || 'N/A'}</p>
+                                    <p><strong>${t.lbl_vat}:</strong> ${ed.customer?.vat_id || ed.customer?.jib_oib || 'N/A'}</p>
+                                </div>
+                                <div class="detail-group">
+                                    <h4>${t.details_info}</h4>
+                                    <p><strong>${t.lbl_number}:</strong> ${ed.invoice?.number || 'N/A'}</p>
+                                    <p><strong>${t.lbl_date}:</strong> ${ed.invoice?.date || 'N/A'}</p>
+                                    <p><strong>${t.lbl_due_date}:</strong> ${ed.invoice?.due_date || 'N/A'}</p>
+                                    <p><strong>${t.lbl_ref}:</strong> ${ed.invoice?.reference_number || 'N/A'}</p>
+                                    <p><strong>${t.lbl_currency}:</strong> ${ed.invoice?.currency || 'N/A'}</p>
+                                </div>
+                                <div class="detail-group">
+                                    <h4>${t.details_financials}</h4>
+                                    <p><strong>${t.lbl_subtotal}:</strong> ${ed.financials?.subtotal || '0.00'}</p>
+                                    <p><strong>${t.lbl_tax}:</strong> ${ed.financials?.tax_total || '0.00'}</p>
+                                    <p><strong>${t.lbl_total}:</strong> ${ed.financials?.amount_due || '0.00'}</p>
+                                    <p><strong>${t.lbl_fiscal}:</strong> ${ed.invoice?.jir || 'N/A'} / ${ed.invoice?.zki || 'N/A'}</p>
+                                </div>
+                            </div>
+                            <div class="line-items">
+                                <h4>${t.details_items}</h4>
+                                <table>
+                                    <thead><tr><th>${t.th_desc}</th><th>${t.th_qty}</th><th>${t.th_price}</th><th>${t.th_total}</th></tr></thead>
+                                    <tbody>
+                                        ${(ed.line_items || []).map(item => `
+                                            <tr>
+                                                <td>${item.description}</td>
+                                                <td>${item.quantity}</td>
+                                                <td>${item.unit_price}</td>
+                                                <td>${item.total}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+
+                    modalBody.innerHTML = renderData();
+                    xmlBtn.disabled = false;
+                    csvBtn.disabled = false;
+                    xmlBtn.onclick = () => downloadFile(`invoice_${id}.xml`, data.xml, 'text/xml');
+                    csvBtn.onclick = () => downloadFile(`invoice_${id}.csv`, data.csv, 'text/csv');
+
+                    if (data.image_url) {
+                        compareBtn.style.display = 'block';
+                        compareBtn.innerText = t.btn_compare;
+                        compareBtn.onclick = () => {
+                            const modalContent = document.querySelector('.modal-content');
+                            const isSplit = modalBody.classList.toggle('split-view');
+                            modalContent.classList.toggle('wide', isSplit);
+                            if (isSplit) {
+                                modalBody.innerHTML = `<div class="modal-split"><div class="modal-image-side"><img src="${data.image_url}" alt="Original" class="compare-img"></div><div class="modal-data-side">${renderData()}</div></div>`;
+                                compareBtn.innerText = t.btn_close_compare;
+                            } else {
+                                modalBody.innerHTML = renderData();
+                                compareBtn.innerText = t.btn_compare;
+                            }
+                        };
+                    }
+                }
+            } catch (error) { }
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').style.display = 'none';
+            document.querySelector('.modal-content').classList.remove('wide');
+        }
+
+        function downloadFile(name, content, type) {
+            const blob = new Blob([content], { type });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        lucide.createIcons();
+        setLanguage(currentLang);
+    </script>
+</body>
+
+</html>
